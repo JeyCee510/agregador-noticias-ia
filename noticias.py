@@ -3,15 +3,18 @@ import requests
 import json
 from supabase import create_client
 
-# --- CONFIGURACIÓN DE LLAVES (Segura para GitHub) ---
+# --- CONFIGURACIÓN DE LLAVES (Seguridad con GitHub Secrets) ---
+# El sistema buscará estos nombres en la configuración de tu repositorio
 GEMINI_KEY = os.getenv("GEMINI_KEY")
 FIRECRAWL_KEY = os.getenv("FIRECRAWL_KEY")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-# El resto del código se mantiene exactamente igual...
+# Verificación de seguridad básica
+if not SUPABASE_URL or not SUPABASE_KEY:
+    raise ValueError("Error: SUPABASE_URL y SUPABASE_KEY no detectados en los Secrets de GitHub.")
 
-# Inicialización de clientes
+# Inicialización del cliente de Supabase
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 DIARIOS = [
@@ -22,7 +25,7 @@ DIARIOS = [
 ]
 
 def obtener_modelo_real():
-    """Detecta el modelo exacto habilitado en tu cuenta de Google"""
+    """Detecta el modelo exacto de Gemini habilitado para tu cuenta"""
     url = f"https://generativelanguage.googleapis.com/v1/models?key={GEMINI_KEY}"
     try:
         res = requests.get(url).json()
@@ -37,55 +40,34 @@ def obtener_modelo_real():
 
 def ejecutar_escaneo():
     modelo_nombre = obtener_modelo_real()
-    print(f"🚀 Iniciando motor con {modelo_nombre}...")
-    print(f"📦 Conectado a Supabase: {SUPABASE_URL}\n")
+    print(f"🚀 Iniciando escaneo geopolítico con {modelo_nombre}...")
 
     for url in DIARIOS:
-        print(f"📡 Escaneando: {url}...")
+        print(f"📡 Procesando: {url}...")
         try:
-            # 1. Extracción con Firecrawl
+            # 1. Extracción de contenido
             res_fire = requests.post(
                 "https://api.firecrawl.dev/v1/scrape",
                 headers={"Authorization": f"Bearer {FIRECRAWL_KEY}"},
                 json={"url": url, "formats": ["markdown"]}
             )
-            datos_fire = res_fire.json()
-            contenido = datos_fire.get('data', {}).get('markdown', '')[:8000]
+            contenido = res_fire.json().get('data', {}).get('markdown', '')[:8000]
 
-            if not contenido:
-                print(f"⚠️ Sin contenido en {url}")
-                continue
+            if not contenido: continue
 
-            # 2. Resumen con Gemini (Foco Geopolítica y Negocios)
+            # 2. Análisis con IA (Foco Geopolítica)
             gem_url = f"https://generativelanguage.googleapis.com/v1/{modelo_nombre}:generateContent?key={GEMINI_KEY}"
-            prompt = f"""
-            Analiza el contenido de este diario: {url}.
-            TAREA: Resume las 5 noticias más relevantes del momento.
-            ENFOQUE: Prioridad absoluta a GEOPOLÍTICA y, de modo tangencial, nuevos negocios.
-            IDIOMA: Español. Conciso (máximo 2 frases por noticia).
-            CONTENIDO PARA ANALIZAR:
-            {contenido}
-            """
+            prompt = f"Analiza el medio: {url}. Resume las 5 noticias más importantes con foco en GEOPOLÍTICA y negocios tangenciales en español."
             
-            payload = {"contents": [{"parts": [{"text": prompt}]}]}
+            payload = {"contents": [{"parts": [{"text": prompt + "\n\nTEXTO:\n" + contenido}]}]}
             res_gem = requests.post(gem_url, json=payload)
             datos_gem = res_gem.json()
 
             if 'candidates' in datos_gem:
                 reporte = datos_gem['candidates'][0]['content']['parts'][0]['text']
-                
-                # 3. Guardar en la tabla 'noticias' de Supabase
-                data_insert = {
-                    "medio": url,
-                    "resumen": reporte,
-                    "categoria": "Geopolítica y Negocios"
-                }
-                supabase.table("noticias").insert(data_insert).execute()
-                
-                print(f"✅ Reporte guardado exitosamente para {url}")
-                print("-" * 40)
-            else:
-                print(f"❌ Error de IA en {url}: {json.dumps(datos_gem)}")
+                # 3. Guardar en Supabase
+                supabase.table("noticias").insert({"medio": url, "resumen": reporte, "categoria": "Geopolítica"}).execute()
+                print(f"✅ Guardado con éxito.")
 
         except Exception as e:
             print(f"❌ Error técnico en {url}: {e}")
