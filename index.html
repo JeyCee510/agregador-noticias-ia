@@ -1,37 +1,89 @@
-<script>
-    // ... (Configuración de Supabase que ya funciona) ...
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Info Personalizada</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { background-color: #0f172a; font-family: 'Inter', sans-serif; }
+        .scroll-custom::-webkit-scrollbar { width: 4px; }
+        .scroll-custom::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+    </style>
+</head>
+<body class="p-6 text-slate-100">
 
-    async function cargarNoticias() {
-        const { data, error } = await _supabase.from('noticias').select('*').order('creado_at', { ascending: false });
-        if (error) return;
+    <header class="max-w-7xl mx-auto mb-10 flex flex-col md:flex-row justify-between items-end border-b border-slate-800 pb-8">
+        <div>
+            <h1 class="text-5xl font-black text-sky-400 tracking-tighter">Info Personalizada</h1>
+            <p class="text-slate-400 mt-2 text-lg">Radar inteligente: 6 análisis estratégicos por cada líder mundial de prensa.</p>
+        </div>
+        <div class="flex gap-4 mt-6">
+            <button onclick="cargarNoticias()" class="bg-slate-800 px-6 py-3 rounded-xl font-bold hover:bg-slate-700 transition-all">🔄 Refrescar</button>
+            <a href="https://github.com/JeyCee510/agregador-noticias-ia/actions" target="_blank" class="bg-sky-500 text-slate-900 px-6 py-3 rounded-xl font-bold shadow-lg shadow-sky-500/20 hover:bg-sky-400 transition-all">⚡ Actualizar Ahora</a>
+        </div>
+    </header>
 
-        const dashboard = document.getElementById('dashboard');
-        dashboard.innerHTML = '';
+    <main id="dashboard" class="flex gap-6 overflow-x-auto pb-10 scroll-custom">
+        </main>
 
-        const grupos = {};
-        data.forEach(n => {
-            const medio = n.medio.replace(/https?:\/\/(www\.)?/, '').split('.')[0].toUpperCase();
-            if (!grupos[medio]) grupos[medio] = [];
-            grupos[medio].push(n);
-        });
+    <div id="modal" class="fixed inset-0 bg-slate-950/90 hidden z-50 flex items-center justify-center p-4 backdrop-blur-md">
+        <div class="bg-slate-900 border border-slate-700 p-8 rounded-3xl max-w-2xl w-full shadow-2xl">
+            <h2 id="modal-titulo" class="text-3xl font-bold text-sky-400 mb-6"></h2>
+            <div id="modal-contenido" class="text-slate-300 leading-relaxed space-y-4 text-lg overflow-y-auto max-h-[60vh] pr-4 scroll-custom"></div>
+            <button onclick="document.getElementById('modal').classList.add('hidden')" class="mt-8 w-full bg-slate-800 hover:bg-slate-700 py-4 rounded-2xl font-bold text-sky-400 transition-all">Cerrar Análisis</button>
+        </div>
+    </div>
 
-        Object.keys(grupos).forEach(medio => {
-            const col = document.createElement('div');
-            col.className = "min-w-[320px] max-w-[320px] flex-shrink-0 bg-slate-800/50 border border-slate-800 rounded-2xl p-4";
-            
-            let noticiasHTML = '';
-            grupos[medio].forEach(n => {
-                // Buscamos las etiquetas ignorando mayúsculas/minúsculas y asteriscos
-                const r = n.resumen;
-                const titulo = r.match(/TITULO:\s*(.*)/i)?.[1] || "Noticia en proceso";
-                const breve = r.match(/BREVE:\s*(.*)/i)?.[1] || "Haz clic para ver el análisis completo.";
-                
-                noticiasHTML += `
-                    <div onclick="abrirModal('${btoa(unescape(encodeURIComponent(n.resumen)))}')" class="mb-4 p-5 bg-slate-800 border border-slate-700 rounded-xl cursor-pointer hover:border-sky-500/50 transition-all group shadow-sm">
-                        <span class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">${new Date(n.creado_at).toLocaleDateString()}</span>
-                        <h3 class="font-bold text-slate-100 mt-2 group-hover:text-sky-400 transition-colors line-clamp-2">${titulo.replace(/\*/g, '')}</h3>
-                        <p class="text-xs text-slate-400 mt-2 line-clamp-2">${breve.replace(/\*/g, '')}</p>
-                    </div>
-                `;
+    <script>
+        const _supabase = supabase.createClient("https://muyxysxzisztvozelrqg.supabase.co", "sb_publishable_13NfPe6O7KnY4lOMvZxXQQ_4SpEdr33");
+
+        async function cargarNoticias() {
+            const { data } = await _supabase.from('noticias').select('*').order('creado_at', { ascending: false }).limit(100);
+            const container = document.getElementById('dashboard');
+            container.innerHTML = '';
+
+            const grupos = {};
+            data.forEach(n => {
+                const medio = n.medio.replace(/https?:\/\/(www\.)?/, '').split('.')[0].toUpperCase();
+                if (!grupos[medio]) grupos[medio] = [];
+                if (grupos[medio].length < 6) grupos[medio].push(n); // Limitamos a 6 por columna
             });
-            // ... (Resto del código de columnas)
+
+            Object.keys(grupos).forEach(medio => {
+                const col = document.createElement('div');
+                col.className = "min-w-[350px] bg-slate-800/30 border border-slate-800 rounded-3xl p-5 h-[75vh] flex flex-col";
+                
+                let notasHTML = '';
+                grupos[medio].forEach(n => {
+                    const t = n.resumen.match(/TITULO:\s*(.*)/i)?.[1]?.replace(/\*/g, '') || "Análisis Geopolítico";
+                    const b = n.resumen.match(/BREVE:\s*(.*)/i)?.[1]?.replace(/\*/g, '') || "Haz clic para ver el resumen extendido...";
+                    
+                    notasHTML += `
+                        <div onclick="verMas('${btoa(unescape(encodeURIComponent(n.resumen)))}')" class="mb-4 p-5 bg-slate-800 border border-slate-700 rounded-2xl cursor-pointer hover:border-sky-500/50 transition-all group">
+                            <h3 class="font-bold text-slate-100 group-hover:text-sky-400 leading-tight">${t}</h3>
+                            <p class="text-xs text-slate-500 mt-2 italic">${new Date(n.creado_at).toLocaleDateString()}</p>
+                        </div>
+                    `;
+                });
+
+                col.innerHTML = `<h2 class="text-sky-500 font-black tracking-widest text-xs mb-6 px-2">${medio}</h2><div class="overflow-y-auto pr-2 scroll-custom">${notasHTML}</div>`;
+                container.appendChild(col);
+            });
+        }
+
+        function verMas(dataB64) {
+            const raw = decodeURIComponent(escape(atob(dataB64)));
+            const t = raw.match(/TITULO:\s*(.*)/i)?.[1]?.replace(/\*/g, '') || "Análisis";
+            const e = raw.split(/EXTENDIDO:/i)[1]?.replace(/\*/g, '') || "Cargando detalles...";
+            
+            document.getElementById('modal-titulo').innerText = t;
+            document.getElementById('modal-contenido').innerHTML = e.trim().replace(/\n/g, '<br><br>');
+            document.getElementById('modal').classList.remove('hidden');
+        }
+
+        cargarNoticias();
+    </script>
+</body>
+</html>
