@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radar Geopolítico - IA</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --bg: #f8f9fa; --card: #ffffff; --primary: #2c3e50; --accent: #3498db; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: var(--bg); color: var(--primary); margin: 0; padding: 20px; line-height: 1.5; }
+        .container { max-width: 800px; margin: 0 auto; }
+        header { text-align: center; padding: 40px 0; border-bottom: 2px solid #eee; margin-bottom: 30px; }
+        h1 { margin: 0; font-size: 2rem; letter-spacing: -1px; }
+        .grid { display: grid; gap: 20px; }
+        .noticia-card { background: var(--card); padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: transform 0.2s; border-left: 5px solid var(--accent); }
+        .noticia-card:hover { transform: translateY(-3px); }
+        .medio { font-weight: 800; text-transform: uppercase; font-size: 0.75rem; color: var(--accent); margin-bottom: 10px; display: block; }
+        .fecha { font-size: 0.8rem; color: #95a5a6; margin-bottom: 15px; display: block; }
+        p { margin: 0; font-size: 1.05rem; color: #34495e; white-space: pre-wrap; }
+        .loading { text-align: center; font-style: italic; color: #7f8c8d; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>🌍 Radar Geopolítico</h1>
+        <p style="color: #7f8c8d; margin-top: 10px;">Resúmenes automáticos por Inteligencia Artificial</p>
+    </header>
+
+    <div id="noticias-grid" class="grid">
+        <div class="loading">Sincronizando con la base de datos...</div>
+    </div>
+</div>
+
+<script>
+    // CONFIGURACIÓN DE TU SUPABASE
+    const SUPABASE_URL = "https://muyxysxzisztvozelrqg.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_13NfPe6O7KnY4lOMvZxXQQ_4SpEdr33";
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    async function cargarNoticias() {
+        // Consultamos la tabla 'noticias' ordenando por fecha reciente
+        const { data, error } = await _supabase
+            .from('noticias')
+            .select('*')
+            .order('creado_at', { ascending: false })
+            .limit(40); // Mostramos las últimas 40 entradas
+
+        if (error) {
+            console.error("Error:", error);
+            document.getElementById('noticias-grid').innerHTML = "Error al cargar los datos.";
+            return;
+        }
+
+        const grid = document.getElementById('noticias-grid');
+        grid.innerHTML = '';
+
+        data.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'noticia-card';
+            
+            // Limpiamos la URL para mostrar solo el nombre del medio
+            const nombreMedio = item.medio.replace('https://www.', '').replace('https://', '').split('/')[0];
+            const fechaLocal = new Date(item.creado_at).toLocaleString('es-ES', { 
+                day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' 
+            });
+
+            card.innerHTML = `
+                <span class="medio">${nombreMedio}</span>
+                <span class="fecha">${fechaLocal}</span>
+                <p>${item.resumen}</p>
+            `;
+            grid.appendChild(card);
+        });
+    }
+
+    cargarNoticias();
+</script>
+
+</body>
+</html>
