@@ -1,0 +1,25 @@
+name: Escaneo Automatico de Noticias
+on:
+  schedule:
+    - cron: '0 */2 * * *' # Se ejecuta cada 2 horas
+  workflow_dispatch: # Permite que tú lo actives con un botón manual
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar codigo
+        uses: actions/checkout@v4
+      - name: Instalar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Instalar librerias
+        run: pip install requests supabase
+      - name: Correr Escaner
+        env:
+          GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
+          FIRECRAWL_KEY: ${{ secrets.FIRECRAWL_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python noticias.py
