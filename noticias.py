@@ -2,58 +2,60 @@ import os
 import requests
 from supabase import create_client
 
-# 1. Cargar LLAVES1 desde GitHub Secrets
+# 1. Configuración de Llaves
 raw_keys = os.getenv("LLAVES_PROYECTO")
-if not raw_keys:
-    raise ValueError("Error: No se encontró LLAVES1 en los Secrets.")
+if not raw_keys: raise ValueError("Falta el Secret LLAVES1")
+GEMINI_KEY, FIRECRAWL_KEY, SUPABASE_URL, SUPABASE_KEY = raw_keys.split(",")
 
-try:
-    # Separamos las 4 llaves por la coma
-    lista = raw_keys.split(",")
-    GEMINI_KEY = lista[0].strip()
-    FIRECRAWL_KEY = lista[1].strip()
-    SUPABASE_URL = lista[2].strip()
-    SUPABASE_KEY = lista[3].strip()
-except:
-    raise ValueError("Error: El formato de LLAVES1 debe ser: GEMINI,FIRE,URL,ANON")
+supabase = create_client(SUPABASE_URL.strip(), SUPABASE_KEY.strip())
 
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-
+# Lista completa de 8 diarios para máxima cobertura
 DIARIOS = [
-    "https://www.latercera.com", "https://elpais.com", "https://www.folha.uol.com.br", 
-    "https://www.chinadaily.com.cn", "https://www.hurriyetdailynews.com", "https://www.eluniversal.com.mx"
+    "https://www.latercera.com", "https://elpais.com", "https://www.lanacion.com.ar",
+    "https://www.folha.uol.com.br", "https://www.chinadaily.com.cn", 
+    "https://www.hurriyetdailynews.com", "https://www.eluniverso.com", 
+    "https://www.eluniversal.com.mx"
 ]
 
 def ejecutar():
-    print("🚀 Iniciando Radar Geopolítico...")
-    gem_url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
+    print("🌍 Iniciando Escaneo de 6 noticias por diario...")
+    gem_url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY.strip()}"
 
     for url in DIARIOS:
         try:
-            # Extracción limpia
+            # Extracción de contenido
             res_fire = requests.post(
                 "https://api.firecrawl.dev/v1/scrape",
-                headers={"Authorization": f"Bearer {FIRECRAWL_KEY}"},
+                headers={"Authorization": f"Bearer {FIRECRAWL_KEY.strip()}"},
                 json={"url": url, "formats": ["markdown"]}
             )
-            markdown = res_fire.json().get('data', {}).get('markdown', '')[:10000]
-            if not markdown: continue
+            contenido = res_fire.json().get('data', {}).get('markdown', '')[:12000]
+            if not contenido: continue
 
-            # IA con instrucciones de formato estricto
-            prompt = f"""Analiza {url}. Selecciona la noticia más relevante de Geopolítica/Negocios.
-            Responde ÚNICAMENTE en este formato:
-            TITULO: [Título]
-            BREVE: [Resumen de una línea]
-            EXTENDIDO: [Análisis profundo de 2 o 3 párrafos]"""
+            # Pedimos a la IA 6 noticias estructuradas
+            prompt = f"""
+            Analiza el contenido de {url}. 
+            Selecciona las 6 noticias de GEOPOLÍTICA o NEGOCIOS más importantes.
+            Devuelve cada noticia separada por el símbolo '###'.
+            Para cada noticia usa estrictamente este formato:
+            TITULO: [Título breve y atractivo]
+            BREVE: [Resumen de 1 frase]
+            EXTENDIDO: [Análisis profundo de 3 párrafos]
+            """
             
-            payload = {"contents": [{"parts": [{"text": prompt + "\n\nCONTENIDO:\n" + markdown}]}]}
+            payload = {"contents": [{"parts": [{"text": prompt + "\n\nTEXTO:\n" + contenido}]}]}
             res_gem = requests.post(gem_url, json=payload)
             
             if res_gem.status_code == 200:
-                texto_ia = res_gem.json()['candidates'][0]['content']['parts'][0]['text']
-                # Guardamos en Supabase
-                supabase.table("noticias").insert({"medio": url, "resumen": texto_ia}).execute()
-                print(f"✅ {url} analizado.")
+                texto_completo = res_gem.json()['candidates'][0]['content']['parts'][0]['text']
+                # Separamos las 6 noticias
+                noticias = texto_completo.split('###')
+                
+                for nota in noticias:
+                    if len(nota.strip()) > 50: # Evitar bloques vacíos
+                        supabase.table("noticias").insert({"medio": url, "resumen": nota.strip()}).execute()
+                
+                print(f"✅ Procesadas 6 noticias de: {url}")
 
         except Exception as e:
             print(f"❌ Error en {url}: {e}")
