@@ -8,16 +8,16 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body { background-color: #0f172a; font-family: 'Inter', sans-serif; }
-        .scroll-custom::-webkit-scrollbar { width: 4px; }
-        .scroll-custom::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        .scroll-hide::-webkit-scrollbar { width: 4px; }
+        .scroll-hide::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
     </style>
 </head>
 <body class="p-6 text-slate-100">
 
     <header class="max-w-7xl mx-auto mb-10 flex flex-col md:flex-row justify-between items-end border-b border-slate-800 pb-8">
         <div>
-            <h1 class="text-5xl font-black text-sky-400 tracking-tighter">Info Personalizada</h1>
-            <p class="text-slate-400 mt-2 text-lg">Radar inteligente: 6 análisis estratégicos por cada líder mundial de prensa.</p>
+            <h1 class="text-5xl font-black text-sky-400 tracking-tighter italic">Info Personalizada</h1>
+            <p class="text-slate-400 mt-2 text-lg">Tu radar geopolítico profesional: 6 análisis estratégicos por cada líder de prensa mundial.</p>
         </div>
         <div class="flex gap-4 mt-6">
             <button onclick="cargarNoticias()" class="bg-slate-800 px-6 py-3 rounded-xl font-bold hover:bg-slate-700 transition-all">🔄 Refrescar</button>
@@ -25,14 +25,14 @@
         </div>
     </header>
 
-    <main id="dashboard" class="flex gap-6 overflow-x-auto pb-10 scroll-custom">
+    <main id="dashboard" class="flex gap-6 overflow-x-auto pb-10 scroll-hide">
         </main>
 
-    <div id="modal" class="fixed inset-0 bg-slate-950/90 hidden z-50 flex items-center justify-center p-4 backdrop-blur-md">
+    <div id="modal" class="fixed inset-0 bg-slate-950/95 hidden z-50 flex items-center justify-center p-4 backdrop-blur-md">
         <div class="bg-slate-900 border border-slate-700 p-8 rounded-3xl max-w-2xl w-full shadow-2xl">
-            <h2 id="modal-titulo" class="text-3xl font-bold text-sky-400 mb-6"></h2>
-            <div id="modal-contenido" class="text-slate-300 leading-relaxed space-y-4 text-lg overflow-y-auto max-h-[60vh] pr-4 scroll-custom"></div>
-            <button onclick="document.getElementById('modal').classList.add('hidden')" class="mt-8 w-full bg-slate-800 hover:bg-slate-700 py-4 rounded-2xl font-bold text-sky-400 transition-all">Cerrar Análisis</button>
+            <h2 id="modal-titulo" class="text-3xl font-bold text-sky-400 mb-6 leading-tight"></h2>
+            <div id="modal-contenido" class="text-slate-300 leading-relaxed space-y-4 text-lg overflow-y-auto max-h-[60vh] pr-4 scroll-hide"></div>
+            <button onclick="document.getElementById('modal').classList.add('hidden')" class="mt-8 w-full bg-sky-500/10 hover:bg-sky-500/20 py-4 rounded-2xl font-bold text-sky-400 transition-all">Cerrar Análisis</button>
         </div>
     </div>
 
@@ -40,7 +40,7 @@
         const _supabase = supabase.createClient("https://muyxysxzisztvozelrqg.supabase.co", "sb_publishable_13NfPe6O7KnY4lOMvZxXQQ_4SpEdr33");
 
         async function cargarNoticias() {
-            const { data } = await _supabase.from('noticias').select('*').order('creado_at', { ascending: false }).limit(100);
+            const { data } = await _supabase.from('noticias').select('*').order('creado_at', { ascending: false }).limit(200);
             const container = document.getElementById('dashboard');
             container.innerHTML = '';
 
@@ -48,38 +48,38 @@
             data.forEach(n => {
                 const medio = n.medio.replace(/https?:\/\/(www\.)?/, '').split('.')[0].toUpperCase();
                 if (!grupos[medio]) grupos[medio] = [];
-                if (grupos[medio].length < 6) grupos[medio].push(n); // Limitamos a 6 por columna
+                if (grupos[medio].length < 6) grupos[medio].push(n);
             });
 
-            Object.keys(grupos).forEach(medio => {
+            Object.keys(grupos).sort().forEach(medio => {
                 const col = document.createElement('div');
-                col.className = "min-w-[350px] bg-slate-800/30 border border-slate-800 rounded-3xl p-5 h-[75vh] flex flex-col";
+                col.className = "min-w-[360px] max-w-[360px] bg-slate-800/30 border border-slate-800 rounded-3xl p-5 h-[75vh] flex flex-col";
                 
-                let notasHTML = '';
+                let htmlNotas = '';
                 grupos[medio].forEach(n => {
-                    const t = n.resumen.match(/TITULO:\s*(.*)/i)?.[1]?.replace(/\*/g, '') || "Análisis Geopolítico";
-                    const b = n.resumen.match(/BREVE:\s*(.*)/i)?.[1]?.replace(/\*/g, '') || "Haz clic para ver el resumen extendido...";
+                    const titulo = n.resumen.match(/TITULO:\s*(.*)/i)?.[1]?.replace(/\*/g, '') || "Análisis Estratégico";
+                    const breve = n.resumen.match(/BREVE:\s*(.*)/i)?.[1]?.replace(/\*/g, '') || "Haz clic para ver los detalles del informe.";
                     
-                    notasHTML += `
-                        <div onclick="verMas('${btoa(unescape(encodeURIComponent(n.resumen)))}')" class="mb-4 p-5 bg-slate-800 border border-slate-700 rounded-2xl cursor-pointer hover:border-sky-500/50 transition-all group">
-                            <h3 class="font-bold text-slate-100 group-hover:text-sky-400 leading-tight">${t}</h3>
-                            <p class="text-xs text-slate-500 mt-2 italic">${new Date(n.creado_at).toLocaleDateString()}</p>
+                    htmlNotas += `
+                        <div onclick="abrirPopup('${btoa(unescape(encodeURIComponent(n.resumen)))}')" class="mb-4 p-5 bg-slate-800/80 border border-slate-700 rounded-2xl cursor-pointer hover:border-sky-500/50 transition-all hover:scale-[1.02] active:scale-95 group">
+                            <h3 class="font-bold text-slate-100 group-hover:text-sky-400 transition-colors leading-snug">${titulo}</h3>
+                            <p class="text-xs text-slate-500 mt-3 font-medium tracking-wider">${new Date(n.creado_at).toLocaleDateString()}</p>
                         </div>
                     `;
                 });
 
-                col.innerHTML = `<h2 class="text-sky-500 font-black tracking-widest text-xs mb-6 px-2">${medio}</h2><div class="overflow-y-auto pr-2 scroll-custom">${notasHTML}</div>`;
+                col.innerHTML = `<h2 class="text-sky-500 font-black tracking-widest text-[10px] mb-6 px-2 opacity-50 uppercase">${medio}</h2><div class="overflow-y-auto pr-2 scroll-hide">${htmlNotas}</div>`;
                 container.appendChild(col);
             });
         }
 
-        function verMas(dataB64) {
-            const raw = decodeURIComponent(escape(atob(dataB64)));
-            const t = raw.match(/TITULO:\s*(.*)/i)?.[1]?.replace(/\*/g, '') || "Análisis";
-            const e = raw.split(/EXTENDIDO:/i)[1]?.replace(/\*/g, '') || "Cargando detalles...";
+        function abrirPopup(b64) {
+            const texto = decodeURIComponent(escape(atob(b64)));
+            const titulo = texto.match(/TITULO:\s*(.*)/i)?.[1]?.replace(/\*/g, '') || "Análisis Geopolítico";
+            const extendido = texto.split(/EXTENDIDO:/i)[1]?.replace(/\*/g, '') || "Análisis en profundidad no disponible para esta entrada.";
             
-            document.getElementById('modal-titulo').innerText = t;
-            document.getElementById('modal-contenido').innerHTML = e.trim().replace(/\n/g, '<br><br>');
+            document.getElementById('modal-titulo').innerText = titulo;
+            document.getElementById('modal-contenido').innerHTML = extendido.trim().replace(/\n/g, '<br><br>');
             document.getElementById('modal').classList.remove('hidden');
         }
 
